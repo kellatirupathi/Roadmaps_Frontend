@@ -1,0 +1,265 @@
+.app-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  /* Updated gradient to match roadmap component */
+  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+  padding: 0.75rem 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.app-navbar.scrolled {
+  padding: 0.5rem 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.navbar-container {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: white;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  color: white;
+  font-size: 1.25rem;
+  margin-right: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.navbar-logo::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+  border-radius: 12px;
+}
+
+.navbar-logo i {
+  position: relative;
+  z-index: 2;
+}
+
+.brand-text {
+  font-weight: 700;
+  font-size: 1.5rem;
+  background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0.8));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+}
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-actions {
+  margin-left: 1.5rem;
+}
+
+.nav-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.roadmaps-btn,
+.add-tech-stack-btn,
+.dashboard-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  /* Updated color to match roadmap component */
+  color: #4b6cb7;
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  text-decoration: none;
+}
+
+.roadmaps-btn i,
+.add-tech-stack-btn i,
+.dashboard-btn i {
+  margin-right: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.roadmaps-btn:hover,
+.add-tech-stack-btn:hover,
+.dashboard-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  /* Subtle background color on hover */
+  background-color: #f8f9fa;
+  color: #4b6cb7;
+}
+
+/* Dashboard button specific styling */
+.dashboard-btn {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #4b6cb7;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dashboard-btn:hover {
+  background-color: white;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+/* Active navigation button styling */
+.active-nav-btn {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #3a57e8;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.active-nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 3px;
+  background-color: #3a57e8;
+  border-radius: 2px;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 2rem;
+  height: 1.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 10;
+}
+
+.mobile-menu-toggle span {
+  width: 100%;
+  height: 2px;
+  background-color: white;
+  border-radius: 10px;
+  transition: all 0.3s ease-in-out;
+}
+
+@media (max-width: 991.98px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
+  .navbar-menu {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 300px;
+    height: 100vh;
+    padding: 5rem 1.5rem 2rem;
+    /* Updated gradient to match roadmap component */
+    background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+    flex-direction: column;
+    align-items: flex-start;
+    transition: right 0.3s ease-in-out;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+  }
+  
+  .navbar-menu.open {
+    right: 0;
+  }
+  
+  .navbar-actions {
+    margin-left: 0;
+    margin-top: 1.5rem;
+    width: 100%;
+  }
+  
+  .nav-buttons {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .roadmaps-btn,
+  .add-tech-stack-btn,
+  .dashboard-btn {
+    width: 100%;
+  }
+  
+  .app-navbar.mobile-open .mobile-menu-toggle span:nth-child(1) {
+    transform: translateY(10px) rotate(45deg);
+  }
+  
+  .app-navbar.mobile-open .mobile-menu-toggle span:nth-child(2) {
+    opacity: 0;
+  }
+  
+  .app-navbar.mobile-open .mobile-menu-toggle span:nth-child(3) {
+    transform: translateY(-10px) rotate(-45deg);
+  }
+}
+
+@media (max-width: 576px) {
+  .navbar-logo {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1rem;
+  }
+  
+  .brand-text {
+    font-size: 1.25rem;
+  }
+  
+  .nav-buttons {
+    gap: 0.5rem;
+  }
+  
+  .roadmaps-btn,
+  .add-tech-stack-btn,
+  .dashboard-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    min-width: 120px;
+  }
+}
