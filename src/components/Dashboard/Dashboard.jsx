@@ -1,4 +1,3 @@
-// client/src/components/Dashboard/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import { Button, Alert, Badge, Modal, Table, Form, Dropdown, Spinner, Card, Row, Col } from 'react-bootstrap';
 import TechStackDropdown from '../TechStackDropdown/TechStackDropdown';
@@ -94,9 +93,20 @@ const Dashboard = ({ view = "dropdown-only" }) => {
         }
         
         try {
+          // Get all roadmaps with complete data
           const roadmapsResponse = await getAllRoadmaps();
           if (roadmapsResponse && roadmapsResponse.data) {
-            setSavedRoadmaps(roadmapsResponse.data);
+            // Make sure we have all the necessary fields
+            const roadmapsWithAllFields = roadmapsResponse.data.map(roadmap => ({
+              ...roadmap,
+              // Ensure these fields exist, provide defaults if they don't
+              roles: roadmap.roles || [],
+              publishedUrl: roadmap.publishedUrl || '#',
+              filename: roadmap.filename || 'unknown',
+              techStacks: roadmap.techStacks || [],
+              createdDate: roadmap.createdDate || new Date().toISOString()
+            }));
+            setSavedRoadmaps(roadmapsWithAllFields);
           }
         } catch (err) {
           console.error('Failed to fetch roadmaps:', err);
@@ -291,7 +301,7 @@ const Dashboard = ({ view = "dropdown-only" }) => {
     );
   };
 
-  // Generate roadmap for a specific role - Modified to open upload form directly
+  // Generate roadmap for a specific role - Modified to properly generate HTML first
   const generateRoadmap = async (company, role) => {
     if (!company.name.trim() || !role.title.trim() || role.selectedTechStacks.length === 0) {
       setError('Please provide company name, role, and select at least one tech stack');
@@ -331,18 +341,32 @@ const Dashboard = ({ view = "dropdown-only" }) => {
       // Set filename using NIAT_X_CompanyName format
       setFilename(`NIAT_X_${company.name.replace(/\s+/g, '_')}`);
       
-      // Generate HTML directly and show upload modal
+      // Generate HTML content first
       const html = generateRoadmapHtml(company.name, [singleRole], techStacksData);
+      console.log('Generated HTML length:', html ? html.length : 0);
+      
+      if (!html || html.length === 0) {
+        throw new Error('Failed to generate roadmap HTML content');
+      }
+      
+      // Set the generated HTML to state
       setRoadmapHtml(html);
+      
+      // Show success message
+      setSuccess('Roadmap content generated successfully!');
+      
+      // Now show the upload modal
       setShowUploadModal(true);
+      
+      setLoading(false);
     } catch (err) {
-      setError('Failed to generate roadmap');
-    } finally {
+      console.error('Error generating roadmap:', err);
+      setError('Failed to generate roadmap: ' + (err.message || 'Unknown error'));
       setLoading(false);
     }
   };
 
-  // Generate consolidated roadmap for all roles in a company - Modified to open upload form directly
+  // Generate consolidated roadmap for all roles in a company - Modified to properly generate HTML first
   const generateConsolidatedRoadmap = async (company) => {
     if (!company.name.trim()) {
       setError('Please provide company name');
@@ -405,13 +429,27 @@ const Dashboard = ({ view = "dropdown-only" }) => {
       // Set filename using NIAT_X_CompanyName format
       setFilename(`NIAT_X_${company.name.replace(/\s+/g, '_')}`);
       
-      // Generate HTML directly and show upload modal
+      // Generate HTML first
       const html = generateRoadmapHtml(company.name, rolesData, allTechStacksData);
+      console.log('Generated consolidated HTML length:', html ? html.length : 0);
+      
+      if (!html || html.length === 0) {
+        throw new Error('Failed to generate consolidated roadmap HTML content');
+      }
+      
+      // Set the generated HTML to state
       setRoadmapHtml(html);
+      
+      // Show success message
+      setSuccess('Consolidated roadmap content generated successfully!');
+      
+      // Show the upload modal
       setShowUploadModal(true);
+      
+      setLoading(false);
     } catch (err) {
-      setError('Failed to generate consolidated roadmap');
-    } finally {
+      console.error('Error generating consolidated roadmap:', err);
+      setError('Failed to generate consolidated roadmap: ' + (err.message || 'Unknown error'));
       setLoading(false);
     }
   };
@@ -461,16 +499,25 @@ const Dashboard = ({ view = "dropdown-only" }) => {
     setPublishedUrl('');
   };
 
-  // Handle uploading to GitHub
+  // Enhanced and fixed handleUploadToGithub function
   const handleUploadToGithub = async () => {
     if (!filename.trim()) {
       setUploadError('Please enter a file name');
       return;
     }
     
+    if (!roadmapHtml || roadmapHtml.trim() === '') {
+      setUploadError('No content to upload. Please generate roadmap content first.');
+      return;
+    }
+    
     try {
       setUploadLoading(true);
       setUploadError(null);
+      
+      // Log values before sending to check if they exist
+      console.log('Uploading with filename:', filename);
+      console.log('Content length:', roadmapHtml.length);
       
       const response = await uploadToGithub({
         filename: filename.trim().endsWith('.html') ? filename.trim() : `${filename.trim()}.html`,
@@ -488,7 +535,8 @@ const Dashboard = ({ view = "dropdown-only" }) => {
         techStacks: currentRoadmapData.techStacksData.map(stack => stack.name)
       });
     } catch (err) {
-      setUploadError('Failed to upload to GitHub. Please try again.');
+      console.error('GitHub upload error:', err);
+      setUploadError('Failed to upload to GitHub: ' + (err.response?.data?.error || err.message || 'Unknown error'));
       setUploadLoading(false);
     }
   };
@@ -757,7 +805,6 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
       overflow: hidden;
       box-shadow: var(--shadow-inner);
     }
-    
     .progress-bar-fill {
       height: 100%;
       background: var(--progress-gradient);
@@ -1419,33 +1466,91 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
     return false;
   });
 
-  // Show details for all techstacks 
-  const showAllTechStacksDetails = () => {
-    setModalTitle("All Techstacks");
+// Updated showAllTechStacksDetails function with editing capabilities
+const showAllTechStacksDetails = () => {
+  setModalTitle("All Techstacks");
+  
+  // Generate data for each tech stack with a summary of topics and editing capability
+  const data = [];
+  
+  allTechStacksData.forEach(stack => {
+    const totalTopics = stack.roadmapItems.length;
+    const completedTopics = stack.roadmapItems.filter(item => item.completionStatus === 'Completed').length;
+    const inProgressTopics = stack.roadmapItems.filter(item => item.completionStatus === 'In Progress').length;
+    const notStartedTopics = stack.roadmapItems.filter(item => item.completionStatus === 'Yet to Start').length;
     
-    // Generate data for each tech stack with a summary of topics
-    const data = [];
+    data.push({
+      techStack: stack.name,
+      id: stack._id,
+      totalTopics,
+      completedTopics,
+      inProgressTopics,
+      notStartedTopics,
+      progress: totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0,
+      isEditing: false, // Track edit mode for each stack
+      description: stack.description || '' // Include description for editing
+    });
+  });
+  
+  setModalData(data);
+  setShowStatsModal(true);
+};
+
+// Add new function to toggle edit mode for a specific tech stack
+const toggleEditMode = (index) => {
+  setModalData(prevData => {
+    const newData = [...prevData];
+    newData[index] = {
+      ...newData[index],
+      isEditing: !newData[index].isEditing
+    };
+    return newData;
+  });
+};
+
+// Add function to update tech stack name or description
+const handleTechStackUpdate = async (index, field, value) => {
+  try {
+    const item = modalData[index];
     
-    allTechStacksData.forEach(stack => {
-      const totalTopics = stack.roadmapItems.length;
-      const completedTopics = stack.roadmapItems.filter(item => item.completionStatus === 'Completed').length;
-      const inProgressTopics = stack.roadmapItems.filter(item => item.completionStatus === 'In Progress').length;
-      const notStartedTopics = stack.roadmapItems.filter(item => item.completionStatus === 'Yet to Start').length;
-      
-      data.push({
-        techStack: stack.name,
-        id: stack._id,
-        totalTopics,
-        completedTopics,
-        inProgressTopics,
-        notStartedTopics,
-        progress: totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0
-      });
+    // Create update object with the field to update
+    const updateData = {};
+    updateData[field] = value;
+    
+    // Update local state first for immediate feedback
+    setModalData(prevData => {
+      const newData = [...prevData];
+      newData[index] = {
+        ...newData[index],
+        [field]: value
+      };
+      return newData;
     });
     
-    setModalData(data);
-    setShowStatsModal(true);
-  };
+    // Add this item to the updating list
+    setUpdatingItemIds(prev => [...prev, item.id]);
+    
+    // Call API to update tech stack
+    const result = await updateTechStack(item.id, updateData);
+    
+    // Update the global state with updated tech stack
+    handleTechStackUpdated(result.data);
+    
+    // Remove this item from the updating list
+    setUpdatingItemIds(prev => prev.filter(id => id !== item.id));
+    
+    // Close edit mode
+    toggleEditMode(index);
+    
+    
+  } catch (err) {
+    setError('Failed to update tech stack');
+    
+    // Remove this item from the updating list
+    const item = modalData[index];
+    setUpdatingItemIds(prev => prev.filter(id => id !== item.id));
+  }
+};
 
   // Show details for total topics
   const showTotalTopicsDetails = () => {
@@ -1614,103 +1719,190 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
     }
   };
 
-  // Render the modal content based on the modal title
-  const renderModalContent = () => {
-    if (modalTitle === "All Techstacks") {
-      return (
-        <Table striped bordered hover responsive>
-          <thead className="table-dark">
-            <tr>
-              <th>Tech Stack</th>
-              <th>Total Topics</th>
-              <th>Completed</th>
-              <th>In Progress</th>
-              <th>Yet to Start</th>
-              <th>Progress</th>
-            </tr>
-          </thead>
-          <tbody>
-            {modalData.map((item, index) => (
-              <tr key={index}>
-                <td>{item.techStack}</td>
-                <td>{item.totalTopics}</td>
-                <td>
-                  <span className="status-badge completed">
-                    {item.completedTopics}
-                  </span>
-                </td>
-                <td>
-                  <span className="status-badge in-progress">
-                    {item.inProgressTopics}
-                  </span>
-                </td>
-                <td>
-                  <span className="status-badge yet-to-start">
-                    {item.notStartedTopics}
-                  </span>
-                </td>
-                <td>
-                  <div className="progress-bar-mini-container">
-                    <div 
-                      className="progress-bar-mini-fill" 
-                      style={{ 
-                        width: `${item.progress}%`,
-                        backgroundColor: item.progress > 70 ? '#137333' : item.progress > 30 ? '#b06000' : '#a50e0e'
-                      }}
-                    ></div>
-                    <span className="progress-text">{item.progress}%</span>
+  
+// Updated renderModalContent function to support editing
+const renderModalContent = () => {
+  if (modalTitle === "All Techstacks") {
+    return (
+      <Table striped bordered hover responsive>
+        <thead className="table-dark">
+          <tr>
+            <th>Tech Stack</th>
+            <th>Description</th>
+            <th>Total Topics</th>
+            <th>Completed</th>
+            <th>In Progress</th>
+            <th>Yet to Start</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {modalData.map((item, index) => (
+            <tr key={index}>
+              <td>
+                {item.isEditing ? (
+                  <Form.Control
+                    type="text"
+                    value={item.techStack}
+                    onChange={(e) => setModalData(prevData => {
+                      const newData = [...prevData];
+                      newData[index] = {
+                        ...newData[index],
+                        techStack: e.target.value
+                      };
+                      return newData;
+                    })}
+                    className="form-control-sm"
+                  />
+                ) : (
+                  item.techStack
+                )}
+              </td>
+              <td>
+                {item.isEditing ? (
+                  <Form.Control
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => setModalData(prevData => {
+                      const newData = [...prevData];
+                      newData[index] = {
+                        ...newData[index],
+                        description: e.target.value
+                      };
+                      return newData;
+                    })}
+                    className="form-control-sm"
+                    placeholder="Add description"
+                  />
+                ) : (
+                  item.description || <span className="text-muted">No description</span>
+                )}
+              </td>
+              <td>{item.totalTopics}</td>
+              <td>
+                <span className="status-badge completed">
+                  {item.completedTopics}
+                </span>
+              </td>
+              <td>
+                <span className="status-badge in-progress">
+                  {item.inProgressTopics}
+                </span>
+              </td>
+              <td>
+                <span className="status-badge yet-to-start">
+                  {item.notStartedTopics}
+                </span>
+              </td>
+              <td>
+                <div className="progress-bar-mini-container">
+                  <div 
+                    className="progress-bar-mini-fill" 
+                    style={{ 
+                      width: `${item.progress}%`,
+                      backgroundColor: item.progress > 70 ? '#137333' : item.progress > 30 ? '#b06000' : '#a50e0e'
+                    }}
+                  ></div>
+                  <span className="progress-text">{item.progress}%</span>
+                </div>
+              </td>
+              <td>
+                {updatingItemIds.includes(item.id) ? (
+                  <div className="text-center">
+                    <Spinner animation="border" size="sm" />
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      );
-    } else {
-      return (
-        <Table striped bordered hover responsive>
-          <thead className="table-dark">
-            <tr>
-              <th>Tech Stack</th>
-              <th>Topic</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {modalData.map((item, index) => (
-              <tr key={index}>
-                <td>{item.techStack}</td>
-                <td>{item.topic}</td>
-                <td>
-                  {updatingItemIds.includes(item.topicId) ? (
-                    <div className="text-center">
-                      <Spinner animation="border" size="sm" />
-                    </div>
-                  ) : (
-                    <Form.Select
-                      value={item.status}
-                      onChange={(e) => handleStatusChange(item.techStackId, item.topicId, e.target.value, index)}
-                      className="form-select-sm status-select"
-                      disabled={updatingItemIds.includes(item.topicId)}
+                ) : item.isEditing ? (
+                  <div className="d-flex gap-2">
+                    <Button 
+                      variant="success" 
+                      size="sm"
+                      onClick={() => handleTechStackUpdate(index, 'name', item.techStack)}
+                      title="Save changes"
                     >
-                      <option value="Yet to Start">Yet to Start</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </Form.Select>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      );
-    }
-  };
+                      <i className="fas fa-check"></i>
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => toggleEditMode(index)}
+                      title="Cancel"
+                    >
+                      <i className="fas fa-times"></i>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="d-flex gap-2">
+                    <Button 
+                      variant="primary" 
+                      size="sm"
+                      onClick={() => toggleEditMode(index)}
+                      title="Edit"
+                    >
+                      <i className="fas fa-edit"></i>
+                    </Button>
+                    <Button 
+                      variant="info" 
+                      size="sm"
+                      onClick={() => navigate(`/techstack/${item.id}`)} // You'd need to implement this route
+                      title="View details"
+                    >
+                      <i className="fas fa-eye"></i>
+                    </Button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  } else {
+    // Rest of the function for other modal types remains the same
+    return (
+      <Table striped bordered hover responsive>
+        <thead className="table-dark">
+          <tr>
+            <th>Tech Stack</th>
+            <th>Topic</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {modalData.map((item, index) => (
+            <tr key={index}>
+              <td>{item.techStack}</td>
+              <td>{item.topic}</td>
+              <td>
+                {updatingItemIds.includes(item.topicId) ? (
+                  <div className="text-center">
+                    <Spinner animation="border" size="sm" />
+                  </div>
+                ) : (
+                  <Form.Select
+                    value={item.status}
+                    onChange={(e) => handleStatusChange(item.techStackId, item.topicId, e.target.value, index)}
+                    className="form-select-sm status-select"
+                    disabled={updatingItemIds.includes(item.topicId)}
+                  >
+                    <option value="Yet to Start">Yet to Start</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </Form.Select>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+};
 
   // Render loading spinner for all-roadmaps view
   const renderLoadingSpinner = () => {
     return (
-      <div className="loading-container">
+      <div className="loading-state">
         <Spinner animation="border" role="status" variant="primary">
           <span className="visually-hidden">Loading...</span>
         </Spinner>
@@ -1801,7 +1993,7 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
                       <Button
                         variant="success"
                         onClick={() => generateRoadmap(company, role)}
-                        disabled={!company.name || !role.title || role.selectedTechStacks.length === 0}
+                        disabled={!company.name || !role.title || role.selectedTechStacks.length === 0 || loading}
                         className="generate-button"
                       >
                         <i className="fas fa-cog me-1"></i>
@@ -1845,7 +2037,7 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
                     className="consolidated-button"
                   >
                     <i className="fas fa-object-group me-2"></i>
-                    Generate
+                    Generate Consolidated
                   </Button>
                 </div>
               )}
@@ -1881,16 +2073,20 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
               <Table className="roadmaps-table">
                 <thead>
                   <tr>
+                    <th>CREATED DATE</th>
                     <th>COMPANY</th>
                     <th>ROLE</th>
+                    <th>ROLES</th>
                     <th>TECH STACKS</th>
-                    <th>CREATED DATE</th>
+                    <th>PUBLISHED URL</th>
+                    <th>FILE NAME</th>
                     <th>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRoadmaps.map((roadmap, index) => (
                     <tr key={index}>
+                      <td>{new Date(roadmap.createdDate).toLocaleDateString()}</td>
                       <td>{roadmap.companyName}</td>
                       <td>
                         {roadmap.isConsolidated ? (
@@ -1901,6 +2097,19 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
                         ) : roadmap.role}
                       </td>
                       <td>
+                        {roadmap.roles && roadmap.roles.length > 0 ? (
+                          <div className="tech-stack-badges-container">
+                            {roadmap.roles.map((role, i) => (
+                              <Badge key={i} bg="secondary" className="tech-stack-table-badge">
+                                {role.title}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td>
                         <div className="tech-stack-badges-container">
                           {roadmap.techStacks.map((stack, i) => (
                             <Badge key={i} bg="info" className="tech-stack-table-badge">
@@ -1909,7 +2118,18 @@ const generateRoadmapHtml = (companyName, roles, techStacksData) => {
                           ))}
                         </div>
                       </td>
-                      <td>{new Date(roadmap.createdDate).toLocaleDateString()}</td>
+                      <td className="url-cell">
+                        <a 
+                          href={roadmap.publishedUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="truncate-url"
+                          title={roadmap.publishedUrl}
+                        >
+                          {roadmap.publishedUrl.substring(0, 25)}...
+                        </a>
+                      </td>
+                      <td>{roadmap.filename}</td>
                       <td>
                         <a 
                           href={roadmap.publishedUrl} 
