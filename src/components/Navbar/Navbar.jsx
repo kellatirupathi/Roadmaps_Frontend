@@ -81,7 +81,7 @@ const Navbar = ({ setPageLoading }) => {
         {/* Logo with link to home */}
         <Link to="/" className="navbar-brand">
           <div className="navbar-logo">
-            <i className="fas fa-layer-group"></i>
+            <img src="/logo.svg" alt="Tech Stack Roadmap" className="w-full h-full" />
           </div>
           <span className="brand-text">NIAT Roadmaps</span>
         </Link>
