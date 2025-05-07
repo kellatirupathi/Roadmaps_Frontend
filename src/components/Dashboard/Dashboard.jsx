@@ -439,10 +439,7 @@ const Dashboard = ({ view = "dropdown-only" }) => {
       
       // Set the generated HTML to state
       setRoadmapHtml(html);
-      
-      // Show success message
-      setSuccess('Consolidated roadmap content generated successfully!');
-      
+
       // Show the upload modal
       setShowUploadModal(true);
       
