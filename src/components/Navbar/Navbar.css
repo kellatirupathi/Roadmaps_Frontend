@@ -5,14 +5,12 @@
   right: 0;
   z-index: 1000;
   background: linear-gradient(135deg, #4a6bff 0%, #2b3a67 100%);
-  padding: 0.75rem 0;
   transition: all 0.3s ease;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(8px);
 }
 
 .app-navbar.scrolled {
-  padding: 0.5rem 0;
   background: rgba(42, 57, 104, 0.95);
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
